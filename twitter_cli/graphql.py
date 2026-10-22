@@ -39,6 +39,8 @@ FALLBACK_QUERY_IDS = {
     "Followers": "IOh4aS6UdGWGJUYTqliQ7Q",
     "Following": "zx6e-TLzRkeDO_a7p4b3JQ",
     "CreateTweet": "IID9x6WsdMnTlXnzXGq8ng",
+    # Posts over 280 characters (X Premium) go through CreateNoteTweet; CreateTweet rejects them with code 186.
+    "CreateNoteTweet": "o4vMmMGVvt40x_q9DD3ehQ",
     "DeleteTweet": "VaenaVgh5q5ih7kvyVjgtg",
     "FavoriteTweet": "lI07N6Otwv1PhnEgXILM7A",
     "UnfavoriteTweet": "ZYKSe-w7KEslx3JhSIk5LA",

@@ -1482,6 +1482,49 @@ class TestCreateTweetWithMedia:
         assert captured_body["media"]["media_entities"] == []
 
 
+# ── long posts route through CreateNoteTweet ─────────────────────────────
+
+class TestLongformRouting:
+    """Text over 280 characters must use CreateNoteTweet; CreateTweet rejects it with code 186."""
+
+    def _client(self, calls, op_key, rest_id):
+        client = TwitterClient.__new__(TwitterClient)
+        client._request_delay = 0
+
+        def mock_graphql_post(operation_name, variables, features=None):
+            calls.append((operation_name, variables))
+            return {"data": {op_key: {"tweet_results": {"result": {"rest_id": rest_id}}}}}
+
+        client._graphql_post = mock_graphql_post
+        client._write_delay = lambda: None
+        return client
+
+    def test_short_text_uses_create_tweet(self):
+        calls = []
+        client = self._client(calls, "create_tweet", "1")
+        assert client.create_tweet("x" * 280) == "1"
+        assert calls[0][0] == "CreateTweet"
+        assert "richtext_options" not in calls[0][1]
+
+    def test_long_text_uses_create_note_tweet(self):
+        calls = []
+        client = self._client(calls, "notetweet_create", "2")
+        assert client.create_tweet("x" * 281, reply_to_id="9") == "2"
+        op, variables = calls[0]
+        assert op == "CreateNoteTweet"
+        assert variables["richtext_options"] == {"richtext_tags": []}
+        assert variables["reply"]["in_reply_to_tweet_id"] == "9"
+
+    def test_long_quote_uses_create_note_tweet(self):
+        calls = []
+        client = self._client(calls, "notetweet_create", "3")
+        assert client.quote_tweet("123", "y" * 300, media_ids=["m1"]) == "3"
+        op, variables = calls[0]
+        assert op == "CreateNoteTweet"
+        assert variables["attachment_url"] == "https://x.com/i/status/123"
+        assert variables["media"]["media_entities"][0]["media_id"] == "m1"
+
+
 # ── fetch_search uses POST ────────────────────────────────────────────────
 
 class TestFetchSearchUsesPost:

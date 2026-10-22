@@ -559,6 +559,27 @@ class TwitterClient:
 
         return media_id
 
+    LONGFORM_THRESHOLD = 280
+
+    def _post_tweet(self, variables, text, what):
+        # type: (Dict[str, Any], str, str) -> str
+        """Send CreateTweet, or CreateNoteTweet when the text is over 280 characters.
+
+        X counts characters, not bytes; len() matches for the ASCII/Latin text this tool posts.
+        Long posts need an account with long-post access (X Premium); otherwise X returns an error.
+        """
+        if len(text) > self.LONGFORM_THRESHOLD:
+            variables = dict(variables, richtext_options={"richtext_tags": []})
+            data = self._graphql_post("CreateNoteTweet", variables, FEATURES)
+            result = _deep_get(data, "data", "notetweet_create", "tweet_results", "result")
+        else:
+            data = self._graphql_post("CreateTweet", variables, FEATURES)
+            result = _deep_get(data, "data", "create_tweet", "tweet_results", "result")
+        self._write_delay()
+        if result:
+            return result.get("rest_id", "")
+        raise TwitterAPIError(0, "Failed to create %s" % what)
+
     def create_tweet(self, text, reply_to_id=None, media_ids=None):
         # type: (str, Optional[str], Optional[List[str]]) -> str
         """Post a new tweet.  Returns the new tweet ID.
@@ -582,12 +603,7 @@ class TwitterClient:
                 "in_reply_to_tweet_id": reply_to_id,
                 "exclude_reply_user_ids": [],
             }
-        data = self._graphql_post("CreateTweet", variables, FEATURES)
-        self._write_delay()
-        result = _deep_get(data, "data", "create_tweet", "tweet_results", "result")
-        if result:
-            return result.get("rest_id", "")
-        raise TwitterAPIError(0, "Failed to create tweet")
+        return self._post_tweet(variables, text, "tweet")
 
     def delete_tweet(self, tweet_id):
         # type: (str) -> bool
@@ -712,12 +728,7 @@ class TwitterClient:
             "semantic_annotation_ids": [],
             "dark_request": False,
         }
-        data = self._graphql_post("CreateTweet", variables, FEATURES)
-        self._write_delay()
-        result = _deep_get(data, "data", "create_tweet", "tweet_results", "result")
-        if result:
-            return result.get("rest_id", "")
-        raise TwitterAPIError(0, "Failed to create quote tweet")
+        return self._post_tweet(variables, text, "quote tweet")
 
     def follow_user(self, user_id):
         # type: (str) -> bool
